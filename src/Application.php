@@ -113,7 +113,7 @@ class Application
     private function validateRequest(Request $request)
     {
         if ($request->request === null) {
-            return 'You did not provide required parameter';
+            return 'You did not provide required parameters.';
         }
 
         if (empty($request->get('upload'))) {
