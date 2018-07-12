@@ -16,7 +16,6 @@ class EncodingComEncoder implements EncoderInterface
         $this->client = new Client($appId, $accessToken);
     }
 
-
     function encode(\SplFileInfo $file, string $format): string
     {
         return $this->client->encodeFile($file, $format);
