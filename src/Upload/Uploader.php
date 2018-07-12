@@ -9,7 +9,7 @@ use Blossom\BackendDeveloperTest\Upload\Storage\StorageInterface;
 
 class Uploader implements UploaderInterface
 {
-    /** @var array<string,Storage> */
+    /** @var array<string,StorageInterface> */
     private $storageMap;
 
     public function __construct(array $storageMap)
@@ -17,9 +17,9 @@ class Uploader implements UploaderInterface
         $this->storageMap = $storageMap;
     }
 
-    public function upload(\SplFileInfo $file, string $storageId): string
+    public function upload(\SplFileInfo $file, string $uploadServiceName): string
     {
-        $storage = $this->resolveStorage($storageId);
+        $storage = $this->resolveStorage($uploadServiceName);
         return $storage->upload($file);
     }
 

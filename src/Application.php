@@ -2,12 +2,17 @@
 
 namespace Blossom\BackendDeveloperTest;
 
+use Blossom\BackendDeveloperTest\Encoding\EncoderResolver;
+use Blossom\BackendDeveloperTest\Encoding\Encoders\EncodingComEncoder;
+use Blossom\BackendDeveloperTest\Encoding\Exceptions\FailedToResolveEncoder;
+use Blossom\BackendDeveloperTest\Encoding\MP4\MP4Converter;
+use Blossom\BackendDeveloperTest\Services\VideoService;
 use Blossom\BackendDeveloperTest\Upload\Exceptions\FailedToResolveStorageException;
 use Blossom\BackendDeveloperTest\Upload\Storage\AmazonS3Storage;
 use Blossom\BackendDeveloperTest\Upload\Storage\DropboxStorage;
 use Blossom\BackendDeveloperTest\Upload\Storage\FtpStorage;
 use Blossom\BackendDeveloperTest\Upload\Uploader;
-use Blossom\BackendDeveloperTest\Upload\UploaderInterface;
+use FFMPEGStub\FFMPEG;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,8 +25,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class Application
 {
-    /** @var UploaderInterface */
-    private $uploader;
+    /** @var VideoService */
+    private $videoService;
 
     /**
      * By default the constructor takes a single argument which is a config array.
@@ -32,7 +37,7 @@ class Application
      */
     public function __construct(array $config)
     {
-        $this->uploader = new Uploader([
+        $uploader = new Uploader([
             'ftp' => new FtpStorage(
                 $config['ftp']['hostname'],
                 $config['ftp']['username'],
@@ -50,6 +55,19 @@ class Application
                 $config['dropbox']['container']
             ),
         ]);
+        $mp4Converter = new MP4Converter(new FFMPEG());
+        $encodingComEncoder = new EncodingComEncoder(
+            $config['encoding.com']['app_id'],
+            $config['encoding.com']['access_token']
+        );
+        $encoderResolver = new EncoderResolver([
+            'webm' => $encodingComEncoder,
+            'avi' => $encodingComEncoder,
+            'ogv' => $encodingComEncoder,
+            'mov' => $encodingComEncoder,
+        ]);
+
+        $this->videoService = new VideoService($uploader, $mp4Converter, $encoderResolver);
     }
 
     /**
@@ -74,17 +92,21 @@ class Application
             return $this->createErrorResponse($errorMessage);
         }
 
-        $uploadService = $request->get('upload');
-        $file = $request->files->get('file');
-
         try {
-            $uploadedFileUrl = $this->uploader->upload($file, $uploadService);
+            $result = $this->videoService->uploadVideo(
+                $request->files->get('file'),
+                $request->get('upload'),
+                $request->get('formats', [])
+            );
 
             return $this->createResponse([
-                'url' => $uploadedFileUrl,
+                'url' => $result->url,
+                'formats' => $result->formats,
             ]);
         } catch (FailedToResolveStorageException $ex) {
             return $this->createErrorResponse('Unknown upload service.');
+        } catch (FailedToResolveEncoder $ex) {
+            return $this->createErrorResponse(sprintf('Format "%s" is not supported.', $ex->getFormat()));
         }
     }
 
