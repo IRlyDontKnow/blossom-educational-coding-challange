@@ -220,7 +220,7 @@ class ApplicationTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response, 'Application should always return Response object');
 
-        $this->assertEquals(Response::HTTP_BAD_REQUEST, $response->getStatusCode(), 'GET requests should return HTTP Code 405 in the response.');
+        $this->assertEquals(Response::HTTP_BAD_REQUEST, $response->getStatusCode(), 'Requests with unknown service should return HTTP Code 400 in the response.');
     }
 
     public function testReturns400ForRequestWithUnsupportedFormat()
